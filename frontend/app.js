@@ -270,6 +270,16 @@
 
   metronomeToggle.addEventListener('change', () => {
     metronomeOn = metronomeToggle.checked;
+    // nextBeatIndex only advances inside schedulerTick's `if (metronomeOn)`
+    // block, so while the metronome is off it stays frozen at whatever
+    // offset playback started from. Turning it on mid-playback without
+    // resyncing would replay every beat between that frozen index and the
+    // current offset in one burst (their `when` is in the past, which Web
+    // Audio clamps to "now"). Resync to the next upcoming beat whenever
+    // the metronome is switched on, whether playing or paused.
+    if (metronomeOn && scoreData) {
+      nextBeatIndex = findBeatIndexAtOrAfter(currentLogicalOffset());
+    }
   });
 
   // --- Loop controls ---

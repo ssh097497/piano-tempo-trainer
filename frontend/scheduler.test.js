@@ -1,0 +1,53 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd } = require('./scheduler.js');
+
+test('timeAt(0) equals the reference real time', () => {
+  const clock = new TempoClock(60);
+  clock.reset(10, 0);
+  assert.strictEqual(clock.timeAt(0), 10);
+});
+
+test('at 60 BPM, 1 quarter length is 1 second', () => {
+  const clock = new TempoClock(60);
+  clock.reset(0, 0);
+  assert.strictEqual(clock.timeAt(1), 1);
+});
+
+test('at 50 BPM, 1 quarter length is 1.2 seconds', () => {
+  const clock = new TempoClock(50);
+  clock.reset(0, 0);
+  assert.strictEqual(clock.timeAt(1), 1.2);
+});
+
+test('setBpm keeps the current logical position fixed at the moment of change', () => {
+  const clock = new TempoClock(60); // 1 sec/beat
+  clock.reset(0, 0);
+  clock.setBpm(120, 5); // 5 seconds in at 60 BPM = offset 5; now switch to 120 BPM (0.5 sec/beat)
+  assert.strictEqual(clock.offsetAt(5), 5);
+  assert.strictEqual(clock.timeAt(6), 5.5);
+});
+
+test('computeMeasureStarts returns one entry per measure', () => {
+  const beats = [
+    { offsetQL: 0, measure: 1 }, { offsetQL: 1, measure: 1 }, { offsetQL: 2, measure: 1 },
+    { offsetQL: 3, measure: 2 }, { offsetQL: 4, measure: 2 }, { offsetQL: 5, measure: 2 },
+  ];
+  assert.deepStrictEqual(computeMeasureStarts(beats), [
+    { offsetQL: 0, measure: 1 },
+    { offsetQL: 3, measure: 2 },
+  ]);
+});
+
+test('snapLoopStart snaps to the start of the containing measure', () => {
+  const starts = [{ offsetQL: 0, measure: 1 }, { offsetQL: 3, measure: 2 }, { offsetQL: 6, measure: 3 }];
+  assert.strictEqual(snapLoopStart(4, starts), 3);
+  assert.strictEqual(snapLoopStart(3, starts), 3);
+  assert.strictEqual(snapLoopStart(0, starts), 0);
+});
+
+test('snapLoopEnd snaps to the start of the next measure, or the piece end if in the last measure', () => {
+  const starts = [{ offsetQL: 0, measure: 1 }, { offsetQL: 3, measure: 2 }, { offsetQL: 6, measure: 3 }];
+  assert.strictEqual(snapLoopEnd(4, starts, 9), 6);
+  assert.strictEqual(snapLoopEnd(7, starts, 9), 9);
+});

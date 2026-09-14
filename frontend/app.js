@@ -117,18 +117,6 @@
     }
   }
 
-  // --- Pedal-aware duration ---
-
-  function effectiveDurationQL(note) {
-    let duration = note.durationQL;
-    for (const pedal of scoreData.pedalEvents) {
-      if (note.startQL >= pedal.onQL && note.startQL < pedal.offQL) {
-        duration = Math.max(duration, pedal.offQL - note.startQL);
-      }
-    }
-    return duration;
-  }
-
   // --- Playback engine ---
 
   function findNoteIndexAtOrAfter(offsetQL) {
@@ -181,7 +169,7 @@
       if (note.startQL >= effectiveEnd) break;
       const when = clock.timeAt(note.startQL);
       if (when > lookaheadUntil) break;
-      const durationSec = effectiveDurationQL(note) * clock.secondsPerBeat();
+      const durationSec = effectiveDurationQL(note, scoreData.pedalEvents) * clock.secondsPerBeat();
       synth.playNote(note.pitch, when, durationSec, note.velocity);
       nextNoteIndex++;
     }
@@ -301,15 +289,33 @@
     loopRangeEl.style.width = `${endPct - startPct}%`;
   }
 
+  function ensureLoopOrder() {
+    // The two handlers below set loopStartQL/loopEndQL independently, with
+    // no ordering guarantee -- the user can mark "구간 끝" before marking
+    // "구간 시작" later in the piece. If loopEndQL <= loopStartQL is left
+    // as-is, schedulerTick's note/beat loop breaks immediately every tick
+    // (nothing satisfies startQL < effectiveEnd) and the wraparound check
+    // (currentOffset >= loopEndQL) fires on virtually every tick, calling
+    // startPlayback(loopStartQL) in a silent ~25ms spin-lock. Swap so start
+    // is always before end.
+    if (loopStartQL != null && loopEndQL != null && loopEndQL <= loopStartQL) {
+      const tmp = loopStartQL;
+      loopStartQL = loopEndQL;
+      loopEndQL = tmp;
+    }
+  }
+
   setLoopStartBtn.addEventListener('click', async () => {
     await ensureAudio();
     loopStartQL = snapLoopStart(currentLogicalOffset(), measureStarts);
+    ensureLoopOrder();
     updateLoopHighlight();
   });
 
   setLoopEndBtn.addEventListener('click', async () => {
     await ensureAudio();
     loopEndQL = snapLoopEnd(currentLogicalOffset(), measureStarts, scoreData.totalQuarterLength);
+    ensureLoopOrder();
     updateLoopHighlight();
   });
 

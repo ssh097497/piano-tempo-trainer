@@ -3,13 +3,19 @@ const PIANO_VAR_NAME = '_tone_0000_FluidR3_GM_sf2_file';
 function createPianoSynth(audioContext) {
   const player = new WebAudioFontPlayer();
 
+  const LOAD_TIMEOUT_MS = 15000;
+
   function loadPiano() {
     player.loader.decodeAfterLoading(audioContext, PIANO_VAR_NAME);
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      const startedAt = Date.now();
       const check = setInterval(() => {
         if (player.loader.loaded(PIANO_VAR_NAME)) {
           clearInterval(check);
           resolve();
+        } else if (Date.now() - startedAt > LOAD_TIMEOUT_MS) {
+          clearInterval(check);
+          reject(new Error(`피아노 음색을 ${LOAD_TIMEOUT_MS}ms 안에 불러오지 못했어요.`));
         }
       }, 100);
     });

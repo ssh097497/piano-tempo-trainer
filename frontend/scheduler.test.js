@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd } = require('./scheduler.js');
+const { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd, effectiveDurationQL } = require('./scheduler.js');
 
 test('timeAt(0) equals the reference real time', () => {
   const clock = new TempoClock(60);
@@ -50,4 +50,22 @@ test('snapLoopEnd snaps to the start of the next measure, or the piece end if in
   const starts = [{ offsetQL: 0, measure: 1 }, { offsetQL: 3, measure: 2 }, { offsetQL: 6, measure: 3 }];
   assert.strictEqual(snapLoopEnd(4, starts, 9), 6);
   assert.strictEqual(snapLoopEnd(7, starts, 9), 9);
+});
+
+test('effectiveDurationQL extends a note whose start falls inside a pedal span', () => {
+  const note = { startQL: 2, durationQL: 1 };
+  const pedalEvents = [{ onQL: 1, offQL: 5 }];
+  assert.strictEqual(effectiveDurationQL(note, pedalEvents), 3); // 5 - 2
+});
+
+test('effectiveDurationQL leaves a note outside any pedal span unchanged', () => {
+  const note = { startQL: 10, durationQL: 1 };
+  const pedalEvents = [{ onQL: 1, offQL: 5 }];
+  assert.strictEqual(effectiveDurationQL(note, pedalEvents), 1);
+});
+
+test('effectiveDurationQL keeps the note\'s own duration when it already exceeds the pedal-implied duration', () => {
+  const note = { startQL: 2, durationQL: 10 };
+  const pedalEvents = [{ onQL: 1, offQL: 5 }]; // pedal-implied duration would be 5 - 2 = 3
+  assert.strictEqual(effectiveDurationQL(note, pedalEvents), 10);
 });

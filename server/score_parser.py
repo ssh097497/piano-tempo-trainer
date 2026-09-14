@@ -128,8 +128,10 @@ def extract_score_data(score: m21.stream.Score) -> ScoreData:
         m_offset = measure.getOffsetInHierarchy(score)
         measure_ts = measure.timeSignature or ts
         beats_in_measure = measure_ts.numerator if measure_ts else numerator
+        beat_denominator = measure_ts.denominator if measure_ts else denominator
+        beat_spacing_ql = 4.0 / beat_denominator
         for b in range(beats_in_measure):
-            beats.append(BeatEvent(offset_ql=m_offset + b, measure=measure.number))
+            beats.append(BeatEvent(offset_ql=m_offset + b * beat_spacing_ql, measure=measure.number))
 
     return ScoreData(
         title=title,

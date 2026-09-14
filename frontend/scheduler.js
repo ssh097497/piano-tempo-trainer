@@ -63,6 +63,16 @@ function snapLoopEnd(offsetQL, measureStarts, totalQuarterLength) {
   return totalQuarterLength;
 }
 
+function effectiveDurationQL(note, pedalEvents) {
+  let duration = note.durationQL;
+  for (const pedal of pedalEvents) {
+    if (note.startQL >= pedal.onQL && note.startQL < pedal.offQL) {
+      duration = Math.max(duration, pedal.offQL - note.startQL);
+    }
+  }
+  return duration;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd };
+  module.exports = { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd, effectiveDurationQL };
 }

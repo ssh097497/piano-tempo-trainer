@@ -68,6 +68,25 @@ def test_beats_cover_both_measures_in_3_4():
     assert offsets == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
 
 
+def test_beats_spaced_correctly_in_6_8():
+    """6/8 has denominator 8, so each beat should be 4.0/8 = 0.5 QL apart,
+    not the flat 1.0 QL that only happens to be correct for /4 meters. One
+    6/8 measure is 6 * 0.5 = 3.0 QL, matching its actual duration."""
+    part = m21.stream.Part()
+    part.append(m21.meter.TimeSignature('6/8'))
+    m1 = m21.stream.Measure(number=1)
+    m1.append(m21.note.Note('C4', quarterLength=3.0))
+    part.append(m1)
+    score = m21.stream.Score()
+    score.metadata = m21.metadata.Metadata(title="6/8 Test")
+    score.insert(0, part)
+
+    data = extract_score_data(score)
+    offsets = [b.offset_ql for b in data.beats]
+    assert offsets == [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+    assert len(offsets) == 6
+
+
 def test_missing_time_signature_falls_back_to_4_4_with_warning():
     part = m21.stream.Part()
     m1 = m21.stream.Measure(number=1)

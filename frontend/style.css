@@ -1,0 +1,75 @@
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+#error-banner {
+  background: #fdecea;
+  color: #611a15;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+#drop-zone {
+  border: 2px dashed #999;
+  border-radius: 8px;
+  padding: 48px 16px;
+  text-align: center;
+  position: relative;
+}
+
+#file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+#bpm-slider {
+  flex: 1;
+}
+
+#bpm-number {
+  width: 4em;
+}
+
+#progress-bar {
+  position: relative;
+  height: 12px;
+  background: #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+#progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0%;
+  background: #4a7ec9;
+}
+
+#loop-range {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(255, 165, 0, 0.4);
+}
+
+#time-label {
+  font-size: 0.85em;
+  color: #555;
+  margin-bottom: 12px;
+}

@@ -54,6 +54,17 @@
     errorBanner.hidden = false;
   }
 
+  // Surface otherwise-silent JS errors directly on screen -- there's no
+  // devtools console on a phone, so an uncaught error here (e.g. inside an
+  // async click handler) would otherwise just vanish with no visible sign
+  // playback never started.
+  window.addEventListener('error', (e) => {
+    showError(`디버그: ${e.message} (${e.filename}:${e.lineno})`);
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    showError(`디버그: ${e.reason && e.reason.message ? e.reason.message : e.reason}`);
+  });
+
   function formatTime(sec) {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);

@@ -3,7 +3,7 @@ function playClick(audioContext, when) {
   const osc = audioContext.createOscillator();
   const gain = audioContext.createGain();
   osc.frequency.value = 1500;
-  gain.gain.setValueAtTime(0.5, when);
+  gain.gain.setValueAtTime(1.0, when);
   gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
   osc.connect(gain);
   gain.connect(audioContext.destination);

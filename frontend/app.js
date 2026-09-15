@@ -292,21 +292,41 @@
     track.style.animationDuration = `${(60 / bpm) * 1.6}s`;
   }
 
-  bpmSlider.addEventListener('input', () => {
-    bpmNumber.value = bpmSlider.value;
-    updatePendulumSpeed(Number(bpmSlider.value));
+  function applyBpm(bpm) {
+    updatePendulumSpeed(bpm);
     if (!clock) return;
     if (isPlaying) {
-      clock.setBpm(Number(bpmSlider.value), audioContext.currentTime);
+      clock.setBpm(bpm, audioContext.currentTime);
     } else {
-      clock.bpm = Number(bpmSlider.value);
+      clock.bpm = bpm;
     }
+  }
+
+  bpmSlider.addEventListener('input', () => {
+    bpmNumber.value = bpmSlider.value;
+    applyBpm(Number(bpmSlider.value));
   });
+  // Deliberately do NOT write bpmSlider's (clamped) value back into
+  // bpmNumber on every keystroke here. bpmSlider.value silently clamps to
+  // [20,200] the instant it's assigned, and typing a multi-digit BPM (e.g.
+  // "120") passes through in-between values ("1", "12") that are below the
+  // slider's min -- feeding those clamped values back into bpmNumber would
+  // overwrite what the user just typed before they can finish typing it.
   bpmNumber.addEventListener('input', () => {
-    bpmSlider.value = bpmNumber.value;
-    bpmSlider.dispatchEvent(new Event('input'));
+    const value = Number(bpmNumber.value);
+    if (!Number.isFinite(value)) return; // mid-edit (e.g. field temporarily empty)
+    bpmSlider.value = value;
+    applyBpm(Number(bpmSlider.value));
   });
-  updatePendulumSpeed(Number(bpmSlider.value));
+  // On blur/enter, snap the displayed number itself to the valid range --
+  // type="number" doesn't clamp what's shown the way a range input does.
+  bpmNumber.addEventListener('change', () => {
+    const clamped = Math.min(200, Math.max(20, Number(bpmNumber.value) || 80));
+    bpmNumber.value = clamped;
+    bpmSlider.value = clamped;
+    applyBpm(clamped);
+  });
+  applyBpm(Number(bpmSlider.value));
 
   // --- Progress bar seek ---
 

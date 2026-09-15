@@ -1,4 +1,4 @@
-const CACHE_NAME = 'piano-tempo-trainer-v8';
+const CACHE_NAME = 'piano-tempo-trainer-v9';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

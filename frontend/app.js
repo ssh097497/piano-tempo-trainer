@@ -7,7 +7,7 @@
   let metronomeOn = false;
   let songVolume = 1.0;
   let metronomeVolume = 1.0;
-  let metronomeSoundType = 'noise';
+  let metronomeSoundType = 'beep';
   let loopOn = false;
   let loopStartQL = null;
   let loopEndQL = null;
@@ -42,6 +42,12 @@
   const setLoopStartBtn = document.getElementById('set-loop-start-btn');
   const setLoopEndBtn = document.getElementById('set-loop-end-btn');
   const loopToggle = document.getElementById('loop-toggle');
+  const pendulumWrap = document.getElementById('pendulum-wrap');
+  const metronomeVolumeRow = document.getElementById('metronome-volume-row');
+  const playPauseIcon = document.getElementById('play-pause-icon');
+
+  const PLAY_ICON = '<path d="M6 4.5v15l13-7.5-13-7.5Z" fill="currentColor"/>';
+  const PAUSE_ICON = '<rect x="5" y="4.5" width="5" height="15" rx="1.2" fill="currentColor"/><rect x="14" y="4.5" width="5" height="15" rx="1.2" fill="currentColor"/>';
 
   function showError(message) {
     errorBanner.textContent = message;
@@ -182,7 +188,8 @@
     nextNoteIndex = findNoteIndexAtOrAfter(fromOffsetQL);
     nextBeatIndex = findBeatIndexAtOrAfter(fromOffsetQL);
     isPlaying = true;
-    playPauseBtn.textContent = '⏸';
+    playPauseIcon.innerHTML = PAUSE_ICON;
+    pendulumWrap.classList.remove('paused');
     // Clear any previously running interval before starting a new one.
     // Without this, the loop-restart call to startPlayback() from inside
     // schedulerTick() (below) would stack a second interval on top of the
@@ -194,7 +201,8 @@
 
   function stopInternal() {
     isPlaying = false;
-    playPauseBtn.textContent = '▶';
+    playPauseIcon.innerHTML = PLAY_ICON;
+    pendulumWrap.classList.add('paused');
     clearInterval(schedulerHandle);
     synth.stopAll();
   }
@@ -268,8 +276,14 @@
 
   // --- BPM control ---
 
+  function updatePendulumSpeed(bpm) {
+    const track = pendulumWrap.querySelector('.pendulum-track');
+    track.style.animationDuration = `${(60 / bpm) * 1.6}s`;
+  }
+
   bpmSlider.addEventListener('input', () => {
     bpmNumber.value = bpmSlider.value;
+    updatePendulumSpeed(Number(bpmSlider.value));
     if (!clock) return;
     if (isPlaying) {
       clock.setBpm(Number(bpmSlider.value), audioContext.currentTime);
@@ -281,6 +295,7 @@
     bpmSlider.value = bpmNumber.value;
     bpmSlider.dispatchEvent(new Event('input'));
   });
+  updatePendulumSpeed(Number(bpmSlider.value));
 
   // --- Progress bar seek ---
 
@@ -302,6 +317,9 @@
 
   metronomeToggle.addEventListener('change', () => {
     metronomeOn = metronomeToggle.checked;
+    metronomeVolumeRow.classList.toggle('disabled-fade', !metronomeOn);
+    metronomeVolumeSlider.disabled = !metronomeOn;
+    metronomeSoundSelect.disabled = !metronomeOn;
     // nextBeatIndex only advances inside schedulerTick's `if (metronomeOn)`
     // block, so while the metronome is off it stays frozen at whatever
     // offset playback started from. Turning it on mid-playback without

@@ -5,18 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>피아노 템포 트레이너</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="error-banner" hidden></div>
 
   <section id="upload-screen">
-    <button id="reload-last-file-btn" hidden>이전 파일 불러오기</button>
+    <div class="brand-row">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 4v16M4 4h13a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H4" stroke="#fff9ee" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 10h13M4 15h13" stroke="#fff9ee" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <div class="brand-name">Tempo Trainer</div>
+    </div>
+
+    <div class="upload-hero">
+      <h1>연습할 악보를 올려주세요</h1>
+      <p>MusicXML 파일을 분석해서 BPM을 자유롭게 조절할 수 있는 연습 트랙을 만들어요.</p>
+    </div>
+
     <div id="drop-zone">
-      파일을 선택하거나 여기로 드래그하세요<br>
-      (.musicxml / .mxl)
+      <div class="drop-icon">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0-4 4m4-4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="drop-title">여기를 탭해서 파일 선택</div>
+      <div class="drop-sub">.musicxml · .mxl</div>
       <input type="file" id="file-input">
     </div>
+
+    <button id="reload-last-file-btn" class="secondary-btn" hidden>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 3-6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 4v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      이전 파일 이어서 열기
+    </button>
+
     <p id="license-credits">
       이 앱은 다음 오픈소스를 사용해요:
       <a href="https://github.com/rism-digital/verovio" target="_blank" rel="noopener">Verovio</a> (LGPL-3.0),
@@ -28,48 +51,84 @@
   </section>
 
   <section id="practice-screen" hidden>
-    <h1 id="title"></h1>
-
-    <div class="controls-row">
-      <button id="play-pause-btn">▶</button>
-      <button id="restart-btn">⏮ 처음부터</button>
+    <div class="practice-head">
+      <p class="eyebrow2">지금 연습 중</p>
+      <h1 id="title"></h1>
     </div>
 
-    <div class="controls-row">
-      <label for="bpm-slider">BPM</label>
+    <div class="card">
+      <p class="card-label">재생</p>
+      <div class="transport-row">
+        <button id="play-pause-btn" class="play-btn">
+          <svg id="play-pause-icon" viewBox="0 0 24 24" fill="none"><path d="M6 4.5v15l13-7.5-13-7.5Z" fill="currentColor"/></svg>
+        </button>
+        <button id="restart-btn" class="restart-btn">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M11 5 4 12l7 7M4 12h13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="pendulum-wrap paused" id="pendulum-wrap">
+          <div class="pendulum-track"></div>
+        </div>
+      </div>
+
+      <div class="bpm-row">
+        <label for="bpm-number" class="bpm-value-wrap">
+          <input type="number" id="bpm-number" min="20" max="200" value="80">
+          <span>BPM</span>
+        </label>
+      </div>
       <input type="range" id="bpm-slider" min="20" max="200" value="80">
-      <input type="number" id="bpm-number" min="20" max="200" value="80">
     </div>
 
-    <div class="controls-row">
-      <label><input type="checkbox" id="metronome-toggle"> 🔔 메트로놈</label>
+    <div class="card">
+      <p class="card-label">소리</p>
+      <div class="field-row">
+        <div class="field-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <span class="field-label">곡 음량</span>
+        <input type="range" id="song-volume-slider" min="0" max="100" value="100">
+      </div>
+      <div class="field-row">
+        <div class="field-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v3M12 18v3M5 12H2M22 12h-3M6.5 6.5 4.6 4.6M17.5 6.5l1.9-1.9M6.5 17.5l-1.9 1.9M17.5 17.5l1.9 1.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <span class="field-label">메트로놈</span>
+        <div class="switch">
+          <input type="checkbox" id="metronome-toggle">
+          <div class="track"></div>
+          <div class="thumb"></div>
+        </div>
+        <select id="metronome-sound-select" disabled>
+          <option value="noise">노이즈 틱</option>
+          <option value="beep" selected>사인 비프</option>
+          <option value="woodblock">우드블록</option>
+        </select>
+      </div>
+      <div class="field-row disabled-fade" id="metronome-volume-row">
+        <div class="field-icon" aria-hidden="true" style="visibility:hidden"></div>
+        <span class="field-label" style="color:var(--ink-faint)">틱 음량</span>
+        <input type="range" id="metronome-volume-slider" min="0" max="100" value="100" disabled>
+      </div>
     </div>
 
-    <div class="controls-row">
-      <label for="song-volume-slider">🎹 곡 음량</label>
-      <input type="range" id="song-volume-slider" min="0" max="100" value="100">
-    </div>
-
-    <div class="controls-row">
-      <label for="metronome-volume-slider">🔔 메트로놈 음량</label>
-      <input type="range" id="metronome-volume-slider" min="0" max="100" value="100">
-      <select id="metronome-sound-select">
-        <option value="noise" selected>노이즈 틱</option>
-        <option value="beep">사인 비프</option>
-        <option value="woodblock">우드블록</option>
-      </select>
-    </div>
-
-    <div id="progress-bar">
-      <div id="progress-fill"></div>
-      <div id="loop-range" hidden></div>
-    </div>
-    <div id="time-label">0:00 / 0:00</div>
-
-    <div class="controls-row">
-      <button id="set-loop-start-btn">구간 시작 지정</button>
-      <button id="set-loop-end-btn">구간 끝 지정</button>
-      <label><input type="checkbox" id="loop-toggle"> 🔁 반복</label>
+    <div class="card">
+      <div class="row-between loop-card-head">
+        <p class="card-label">구간 반복</p>
+        <div class="switch">
+          <input type="checkbox" id="loop-toggle">
+          <div class="track"></div>
+          <div class="thumb"></div>
+        </div>
+      </div>
+      <div id="progress-bar">
+        <div id="progress-fill"></div>
+        <div id="loop-range" hidden></div>
+      </div>
+      <div id="time-label">0:00 / 0:00</div>
+      <div class="loop-actions">
+        <button id="set-loop-start-btn" class="chip-btn">구간 시작 지정</button>
+        <button id="set-loop-end-btn" class="chip-btn">구간 끝 지정</button>
+      </div>
     </div>
   </section>
 
@@ -78,10 +137,9 @@
   <script src="vendor/js-synthesizer.min.js"></script>
   <script>
     // Save FluidSynth's Module object before Verovio's script (loaded next)
-    // overwrites the shared window.Module global with its own runtime.
-    // Bind js-synthesizer to it now too, since js-synthesizer resolves
-    // `Module` lazily at first use and would otherwise pick up whichever
-    // WASM runtime loaded last.
+    // overwrites the shared window.Module global. Bind js-synthesizer to it
+    // now too, since js-synthesizer resolves `Module` lazily at first use
+    // and would otherwise pick up whichever WASM runtime loaded last.
     window.__fluidSynthModule = window.Module;
     JSSynth.Synthesizer.initializeWithFluidSynthModule(window.__fluidSynthModule);
   </script>

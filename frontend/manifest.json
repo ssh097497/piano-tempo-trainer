@@ -3,7 +3,7 @@
   "short_name": "템포트레이너",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4a7ec9",
+  "background_color": "#f1ecdf",
+  "theme_color": "#b4802e",
   "icons": []
 }

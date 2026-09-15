@@ -12,7 +12,7 @@ function playNoiseClick(audioContext, when, volume) {
   filter.type = 'highpass';
   filter.frequency.value = 2500;
   const gain = audioContext.createGain();
-  gain.gain.setValueAtTime(2.5 * volume, when);
+  gain.gain.setValueAtTime(3.2 * volume, when);
   gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
   noise.connect(filter);
   filter.connect(gain);
@@ -26,7 +26,7 @@ function playBeepClick(audioContext, when, volume) {
   const osc = audioContext.createOscillator();
   const gain = audioContext.createGain();
   osc.frequency.value = 1500;
-  gain.gain.setValueAtTime(1.0 * volume, when);
+  gain.gain.setValueAtTime(1.4 * volume, when);
   gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
   osc.connect(gain);
   gain.connect(audioContext.destination);
@@ -49,7 +49,7 @@ function playWoodblockClick(audioContext, when, volume) {
   filter.frequency.value = 800;
   filter.Q.value = 3;
   const gain = audioContext.createGain();
-  gain.gain.setValueAtTime(2.5 * volume, when);
+  gain.gain.setValueAtTime(3.2 * volume, when);
   gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
   noise.connect(filter);
   filter.connect(gain);

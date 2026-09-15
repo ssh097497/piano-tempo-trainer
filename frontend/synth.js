@@ -68,6 +68,12 @@ function createPianoSynth(audioContext) {
 
     synth = new JSSynth.Synthesizer();
     synth.init(audioContext.sampleRate);
+    // FluidSynth's default master gain (0.5, confirmed via synth.getGain())
+    // is deliberately conservative to leave headroom for dense orchestral
+    // patches with many simultaneous voices. For a solo piano practice tool
+    // that's too quiet by default, so boost it -- still well under clipping
+    // range for realistic piano chord density.
+    synth.setGain(1.5);
     const node = synth.createAudioNode(audioContext, 4096);
     node.connect(audioContext.destination);
 

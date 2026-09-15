@@ -5,6 +5,9 @@
   let clock = null;
   let isPlaying = false;
   let metronomeOn = false;
+  let songVolume = 1.0;
+  let metronomeVolume = 1.0;
+  let metronomeSoundType = 'noise';
   let loopOn = false;
   let loopStartQL = null;
   let loopEndQL = null;
@@ -28,6 +31,9 @@
   const bpmSlider = document.getElementById('bpm-slider');
   const bpmNumber = document.getElementById('bpm-number');
   const metronomeToggle = document.getElementById('metronome-toggle');
+  const songVolumeSlider = document.getElementById('song-volume-slider');
+  const metronomeVolumeSlider = document.getElementById('metronome-volume-slider');
+  const metronomeSoundSelect = document.getElementById('metronome-sound-select');
   const progressBar = document.getElementById('progress-bar');
   const progressFill = document.getElementById('progress-fill');
   const loopRangeEl = document.getElementById('loop-range');
@@ -170,7 +176,7 @@
       const when = clock.timeAt(note.startQL);
       if (when > lookaheadUntil) break;
       const durationSec = effectiveDurationQL(note, scoreData.pedalEvents) * clock.secondsPerBeat();
-      synth.playNote(note.pitch, when, durationSec, note.velocity);
+      synth.playNote(note.pitch, when, durationSec, note.velocity * songVolume);
       nextNoteIndex++;
     }
 
@@ -180,7 +186,7 @@
         if (beat.offsetQL >= effectiveEnd) break;
         const when = clock.timeAt(beat.offsetQL);
         if (when > lookaheadUntil) break;
-        playClick(audioContext, when);
+        playClick(audioContext, when, metronomeSoundType, metronomeVolume);
         nextBeatIndex++;
       }
     }
@@ -268,6 +274,18 @@
     if (metronomeOn && scoreData) {
       nextBeatIndex = findBeatIndexAtOrAfter(currentLogicalOffset());
     }
+  });
+
+  // --- Volume controls ---
+
+  songVolumeSlider.addEventListener('input', () => {
+    songVolume = Number(songVolumeSlider.value) / 100;
+  });
+  metronomeVolumeSlider.addEventListener('input', () => {
+    metronomeVolume = Number(metronomeVolumeSlider.value) / 100;
+  });
+  metronomeSoundSelect.addEventListener('change', () => {
+    metronomeSoundType = metronomeSoundSelect.value;
   });
 
   // --- Loop controls ---

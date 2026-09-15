@@ -35,6 +35,21 @@
       <label><input type="checkbox" id="metronome-toggle"> 🔔 메트로놈</label>
     </div>
 
+    <div class="controls-row">
+      <label for="song-volume-slider">🎹 곡 음량</label>
+      <input type="range" id="song-volume-slider" min="0" max="100" value="100">
+    </div>
+
+    <div class="controls-row">
+      <label for="metronome-volume-slider">🔔 메트로놈 음량</label>
+      <input type="range" id="metronome-volume-slider" min="0" max="100" value="100">
+      <select id="metronome-sound-select">
+        <option value="noise" selected>노이즈 틱</option>
+        <option value="beep">사인 비프</option>
+        <option value="woodblock">우드블록</option>
+      </select>
+    </div>
+
     <div id="progress-bar">
       <div id="progress-fill"></div>
       <div id="loop-range" hidden></div>

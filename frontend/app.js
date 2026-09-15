@@ -162,6 +162,14 @@
         await synth.loadPiano();
       } catch (err) {
         showError('피아노 음색을 불러오지 못했어요.');
+        // Reset so the `if (!audioContext)` guard above doesn't stay
+        // permanently satisfied -- without this, a failed loadPiano() here
+        // (e.g. a fast click racing WASM startup) would brick the app for
+        // the rest of the page's lifetime: every future ensureAudio() call
+        // would see a non-null audioContext and skip straight past retrying
+        // loadPiano(), requiring a full page reload to recover.
+        audioContext = null;
+        synth = null;
         throw err;
       }
       clock = new TempoClock(Number(bpmSlider.value));

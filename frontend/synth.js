@@ -45,10 +45,30 @@ function createPianoSynth(audioContext) {
   let lastKnownTick = 0;
   let lastKnownTickTime = 0;
 
+  // Cumulative milliseconds of audio rendered so far. processSequencer(msec)
+  // advances FluidSynth's sequencer clock TO an absolute value, not BY a
+  // relative delta (confirmed against the vendored lib: it maps straight to
+  // fluid_sequencer_process(seq, msec)) -- so this must be a running total,
+  // never reset per-callback, or the clock gets pinned at one buffer's worth
+  // of ticks forever and every note fires immediately instead of on time.
+  let renderedMs = 0;
+
   async function loadPiano() {
+    // The ~570KB base64-embedded WASM module in libfluidsynth-2.4.6.js
+    // instantiates asynchronously after the script tag parses. Calling
+    // `new JSSynth.Synthesizer()` / `synth.init()` before it's ready throws
+    // "TypeError: _new_fluid_settings is not a function" (confirmed). This
+    // static method resolves once the WASM module has finished loading.
+    await JSSynth.Synthesizer.waitForWasmInitialized();
+
+    // Re-entrancy guard: if loadPiano() is somehow called twice (e.g. a fast
+    // double-click racing ensureAudio()'s guard), don't double-register the
+    // audioprocess listener or double-initialize the synth/sequencer.
+    if (sequencer) return;
+
     synth = new JSSynth.Synthesizer();
     synth.init(audioContext.sampleRate);
-    const node = synth.createAudioNode(audioContext, 8192);
+    const node = synth.createAudioNode(audioContext, 4096);
     node.connect(audioContext.destination);
 
     const response = await fetch('vendor/piano.sf2');
@@ -59,23 +79,22 @@ function createPianoSynth(audioContext) {
     await sequencer.registerSynthesizer(synth);
     sequencer.setTimeScale(ticksPerSecond);
 
-    lastKnownTick = await sequencer.getTick();
-    lastKnownTickTime = audioContext.currentTime;
-
     // Drive the sequencer's tick clock from the same audioprocess callback
     // that already renders audio (createAudioNode wired its own listener to
     // this event for rendering; ScriptProcessorNode supports multiple
     // listeners on the same event). Each callback reports exactly how much
-    // real playback time it covered, so feeding that straight into
-    // processSequencer keeps the tick clock tied to actual audio time
-    // instead of a separately-drifting JS timer.
+    // real playback time it covered; accumulating that into renderedMs and
+    // feeding the cumulative total into processSequencer keeps the tick
+    // clock tied to actual audio time instead of a separately-drifting JS
+    // timer -- and, critically, keeps it advancing at all (see comment on
+    // renderedMs above). setTimeScale(1000) above means 1 tick == 1 ms, so
+    // renderedMs IS the tick count directly; no async getTick() round-trip
+    // is needed to know the current tick.
     node.addEventListener('audioprocess', (event) => {
-      const elapsedMs = event.outputBuffer.duration * 1000;
-      sequencer.processSequencer(elapsedMs);
-      sequencer.getTick().then((tick) => {
-        lastKnownTick = tick;
-        lastKnownTickTime = audioContext.currentTime;
-      });
+      renderedMs += event.outputBuffer.duration * 1000;
+      sequencer.processSequencer(renderedMs);
+      lastKnownTick = renderedMs;
+      lastKnownTickTime = event.playbackTime + event.outputBuffer.duration;
     });
   }
 

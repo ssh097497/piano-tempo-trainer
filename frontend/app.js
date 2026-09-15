@@ -58,33 +58,15 @@
 
   async function handleFile(file) {
     errorBanner.hidden = true;
-    const formData = new FormData();
-    formData.append('file', file);
-
-    let response;
+    let parsedScoreData;
     try {
-      response = await fetch('/api/parse', { method: 'POST', body: formData });
+      parsedScoreData = await parseScoreFile(file);
     } catch (err) {
-      showError('서버에 연결할 수 없어요. 서버가 켜져 있는지 확인해주세요.');
+      showError(err.message || '악보 파일을 분석하지 못했어요.');
       return;
     }
 
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({ detail: '알 수 없는 오류' }));
-      showError(body.detail);
-      return;
-    }
-
-    scoreData = await response.json();
-    // The backend emits notes part-by-part (e.g. right hand fully, then
-    // left hand), not globally sorted by start time. The scheduler below
-    // walks the notes array with a single forward-only index and assumes
-    // ascending startQL, so an unsorted array causes later parts' notes
-    // to be scheduled after earlier parts' notes have already advanced
-    // playback time past them -- they'd fire late/bunched instead of on
-    // the beat. Sort once here to give the scheduler the ordering it
-    // depends on.
-    scoreData.notes.sort((a, b) => a.startQL - b.startQL);
+    scoreData = parsedScoreData;
     measureStarts = computeMeasureStarts(scoreData.beats);
     titleEl.textContent = scoreData.title;
     uploadScreen.hidden = true;

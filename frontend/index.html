@@ -76,6 +76,13 @@
   <script src="file-memory.js"></script>
   <script src="vendor/libfluidsynth-2.4.6.js"></script>
   <script src="vendor/js-synthesizer.min.js"></script>
+  <script>
+    // Bind js-synthesizer to the FluidSynth module NOW, before Verovio's
+    // script (loaded next) overwrites window.Module with its own runtime.
+    // js-synthesizer normally resolves `Module` lazily at first use, which
+    // would otherwise pick up whichever WASM runtime loaded last.
+    JSSynth.Synthesizer.initializeWithFluidSynthModule(window.Module);
+  </script>
   <script src="vendor/fflate.js"></script>
   <script src="vendor/verovio-toolkit-wasm.js"></script>
   <script src="midi-parser.js"></script>

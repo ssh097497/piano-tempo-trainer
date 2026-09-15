@@ -1,4 +1,4 @@
-const CACHE_NAME = 'piano-tempo-trainer-v10';
+const CACHE_NAME = 'piano-tempo-trainer-v11';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -23,13 +23,25 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
   );
+  // Without this, a newly installed worker sits in the "waiting" state
+  // until every open tab for this site is fully closed -- a plain reload
+  // (even a hard one) keeps the OLD worker (and its old cache) in control.
+  // That's exactly what made every prior fix here look like it "didn't
+  // take" despite deploying correctly. Activate the new worker immediately
+  // instead of waiting.
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
-    )
+    caches.keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      )
+      // Take control of any already-open tabs right away too, so a reload
+      // of an already-open tab gets the new worker's cache instead of
+      // needing the tab fully closed and reopened first.
+      .then(() => self.clients.claim())
   );
 });
 

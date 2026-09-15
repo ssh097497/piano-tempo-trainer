@@ -173,8 +173,21 @@ async function parseScoreFile(file) {
   }
 
   const beats = [];
-  const beatSpacingQL = 4.0 / timeSignature.denominator;
-  const beatsPerMeasure = timeSignature.numerator;
+  // A malformed <time> element (e.g. an empty <beats></beats>) yields NaN -- or 0, or a negative
+  // number -- here. Left unguarded, a non-positive `beatsPerMeasure` makes the inner loop push
+  // nothing and never advance `offsetQL`, so the outer `while` spins forever and freezes the tab
+  // with no error. Fall back to a 4/4 grid instead. This is scoped to the beat grid only: the
+  // `timeSignature` returned to the caller is still whatever the XML reader produced.
+  let beatSpacingQL = 4.0 / timeSignature.denominator;
+  let beatsPerMeasure = timeSignature.numerator;
+  const beatGridIsUsable =
+    Number.isFinite(beatsPerMeasure) && beatsPerMeasure >= 1 &&
+    Number.isFinite(beatSpacingQL) && beatSpacingQL > 0;
+  if (!beatGridIsUsable) {
+    beatsPerMeasure = 4;
+    beatSpacingQL = 1.0;
+    warnings.push('박자표가 올바르지 않아서 박 계산에는 4/4로 가정했어요.');
+  }
   let measureNumber = 1;
   let offsetQL = 0;
   while (offsetQL < totalQuarterLength) {

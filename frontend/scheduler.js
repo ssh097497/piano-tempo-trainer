@@ -73,6 +73,10 @@ function effectiveDurationQL(note, pedalEvents) {
   return duration;
 }
 
+function ticksForFutureTime(currentTick, ticksPerSecond, audioContextNow, when) {
+  return Math.round(currentTick + (when - audioContextNow) * ticksPerSecond);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd, effectiveDurationQL };
+  module.exports = { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd, effectiveDurationQL, ticksForFutureTime };
 }

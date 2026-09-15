@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd, effectiveDurationQL } = require('./scheduler.js');
+const { TempoClock, computeMeasureStarts, snapLoopStart, snapLoopEnd, effectiveDurationQL, ticksForFutureTime } = require('./scheduler.js');
 
 test('timeAt(0) equals the reference real time', () => {
   const clock = new TempoClock(60);
@@ -68,4 +68,20 @@ test('effectiveDurationQL keeps the note\'s own duration when it already exceeds
   const note = { startQL: 2, durationQL: 10 };
   const pedalEvents = [{ onQL: 1, offQL: 5 }]; // pedal-implied duration would be 5 - 2 = 3
   assert.strictEqual(effectiveDurationQL(note, pedalEvents), 10);
+});
+
+test('ticksForFutureTime: a "when" equal to now maps to the current tick', () => {
+  assert.strictEqual(ticksForFutureTime(1000, 1000, 5.0, 5.0), 1000);
+});
+
+test('ticksForFutureTime: 0.5s in the future at 1000 ticks/sec adds 500 ticks', () => {
+  assert.strictEqual(ticksForFutureTime(1000, 1000, 5.0, 5.5), 1500);
+});
+
+test('ticksForFutureTime: scales correctly at a different ticksPerSecond', () => {
+  assert.strictEqual(ticksForFutureTime(0, 500, 0.0, 2.0), 1000);
+});
+
+test('ticksForFutureTime: rounds to the nearest integer tick', () => {
+  assert.strictEqual(ticksForFutureTime(0, 1000, 0.0, 0.0011), 1);
 });

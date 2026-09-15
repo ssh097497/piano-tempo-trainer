@@ -24,6 +24,7 @@
   const practiceScreen = document.getElementById('practice-screen');
   const fileInput = document.getElementById('file-input');
   const dropZone = document.getElementById('drop-zone');
+  const reloadLastFileBtn = document.getElementById('reload-last-file-btn');
   const errorBanner = document.getElementById('error-banner');
   const titleEl = document.getElementById('title');
   const playPauseBtn = document.getElementById('play-pause-btn');
@@ -101,6 +102,53 @@
   });
   fileInput.addEventListener('change', () => {
     if (fileInput.files.length) handleFile(fileInput.files[0]);
+  });
+
+  if (isFileSystemAccessSupported()) {
+    dropZone.addEventListener('click', async (e) => {
+      e.preventDefault();
+      let handles;
+      try {
+        handles = await window.showOpenFilePicker({
+          types: [{ description: 'MusicXML', accept: { 'application/xml': ['.musicxml', '.mxl', '.xml'] } }],
+        });
+      } catch (err) {
+        return; // user cancelled the picker — not an error
+      }
+      const handle = handles[0];
+      await saveFileHandle(handle);
+      const file = await handle.getFile();
+      await handleFile(file);
+    });
+  }
+
+  (async function initReloadButton() {
+    if (!isFileSystemAccessSupported()) return;
+    const handle = await loadFileHandle();
+    if (handle) {
+      reloadLastFileBtn.hidden = false;
+    }
+  })();
+
+  reloadLastFileBtn.addEventListener('click', async () => {
+    const handle = await loadFileHandle();
+    if (!handle) return;
+    try {
+      const permission = await handle.queryPermission({ mode: 'read' });
+      if (permission !== 'granted') {
+        const requested = await handle.requestPermission({ mode: 'read' });
+        if (requested !== 'granted') {
+          showError('파일 접근 권한이 필요해요.');
+          return;
+        }
+      }
+      const file = await handle.getFile();
+      await handleFile(file);
+    } catch (err) {
+      showError('이전 파일을 찾을 수 없어요. 다시 업로드해주세요.');
+      await clearFileHandle();
+      reloadLastFileBtn.hidden = true;
+    }
   });
 
   // --- Audio setup ---

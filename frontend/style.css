@@ -73,3 +73,12 @@ body {
   color: #555;
   margin-bottom: 12px;
 }
+
+#license-credits {
+  font-size: 0.75em;
+  color: #888;
+  margin-top: 24px;
+}
+#license-credits a {
+  color: #888;
+}

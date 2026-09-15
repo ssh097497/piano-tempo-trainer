@@ -152,27 +152,37 @@
 
   // --- Audio setup ---
 
+  let audioInitPromise = null;
+
   async function ensureAudio() {
-    if (!audioContext) {
-      const AudioContextFunc = window.AudioContext || window.webkitAudioContext;
-      audioContext = new AudioContextFunc();
-      synth = createPianoSynth(audioContext);
-      try {
-        await synth.loadPiano();
-      } catch (err) {
-        showError('피아노 음색을 불러오지 못했어요.');
-        // Reset so the `if (!audioContext)` guard above doesn't stay
-        // permanently satisfied -- without this, a failed loadPiano() here
-        // (e.g. a fast click racing WASM startup) would brick the app for
-        // the rest of the page's lifetime: every future ensureAudio() call
-        // would see a non-null audioContext and skip straight past retrying
-        // loadPiano(), requiring a full page reload to recover.
-        audioContext = null;
-        synth = null;
-        throw err;
-      }
-      clock = new TempoClock(Number(bpmSlider.value));
+    if (!audioInitPromise) {
+      // A promise-lock, not a plain `if (!audioContext)` check -- loadPiano()
+      // is slow (WASM init + a large soundfont fetch), and audioContext gets
+      // assigned synchronously before that await. A second overlapping call
+      // (e.g. an impatient double-tap on the play button while the first
+      // tap is still loading) would otherwise see a truthy audioContext,
+      // skip straight past this whole block, and call startPlayback() with
+      // `clock` still null -- crashing on clock.reset(). Every concurrent
+      // caller now awaits the same in-flight promise instead.
+      audioInitPromise = (async () => {
+        const AudioContextFunc = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContextFunc();
+        synth = createPianoSynth(audioContext);
+        try {
+          await synth.loadPiano();
+        } catch (err) {
+          showError('피아노 음색을 불러오지 못했어요.');
+          // Reset so a later ensureAudio() call retries from scratch instead
+          // of being permanently bricked by this one failure.
+          audioContext = null;
+          synth = null;
+          audioInitPromise = null;
+          throw err;
+        }
+        clock = new TempoClock(Number(bpmSlider.value));
+      })();
     }
+    await audioInitPromise;
     if (audioContext.state === 'suspended') {
       await audioContext.resume();
     }

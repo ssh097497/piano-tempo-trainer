@@ -3,7 +3,14 @@ const STORE_NAME = 'file-handles';
 const HANDLE_KEY = 'last-opened';
 
 function isFileSystemAccessSupported() {
-  return 'showOpenFilePicker' in window;
+  // Scoped to desktop Chrome/Edge, per the original design: mobile Chromium
+  // browsers (Samsung Internet, Chrome for Android) also expose
+  // `showOpenFilePicker`, but their underlying native picker for it is a
+  // much more restrictive document picker than a plain <input type="file">
+  // gets -- on at least one real device it showed no files as selectable at
+  // all. Excluding coarse-pointer (touch) devices keeps this feature to the
+  // desktop environment it was actually built and verified for.
+  return 'showOpenFilePicker' in window && !window.matchMedia('(pointer: coarse)').matches;
 }
 
 function openDb() {

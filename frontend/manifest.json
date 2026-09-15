@@ -1,0 +1,9 @@
+{
+  "name": "피아노 템포 트레이너",
+  "short_name": "템포트레이너",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4a7ec9",
+  "icons": []
+}

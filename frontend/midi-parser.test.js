@@ -74,3 +74,43 @@ test('parseMidi includes an endOfTrack event at the final tick', () => {
   assert.ok(eot);
   assert.strictEqual(eot.ticks, 960);
 });
+
+function buildMidiWithRunningStatus() {
+  const trackEvents = [];
+  // Note On pitch 60 velocity 80 at tick 0 (explicit status byte 0x90)
+  trackEvents.push(...encodeVLQ(0), 0x90, 60, 80);
+  // Note On pitch 64 velocity 90 at tick 240 (OMIT status byte, rely on running status)
+  trackEvents.push(...encodeVLQ(240), 64, 90);
+  // Note Off pitch 60 at tick 480 (new status 0x80, changes running status)
+  trackEvents.push(...encodeVLQ(240), 0x80, 60, 0);
+  // Note Off pitch 64 at tick 720 (OMIT status byte, use running status 0x80)
+  trackEvents.push(...encodeVLQ(240), 64, 0);
+  // End of track
+  trackEvents.push(...encodeVLQ(0), 0xff, 0x2f, 0x00);
+
+  const trackLength = trackEvents.length;
+  const bytes = [
+    0x4d, 0x54, 0x68, 0x64, // "MThd"
+    0x00, 0x00, 0x00, 0x06, // header length 6
+    0x00, 0x00,             // format 0
+    0x00, 0x01,             // 1 track
+    0x01, 0xe0,             // division = 480
+    0x4d, 0x54, 0x72, 0x6b, // "MTrk"
+    (trackLength >> 24) & 0xff, (trackLength >> 16) & 0xff, (trackLength >> 8) & 0xff, trackLength & 0xff,
+    ...trackEvents,
+  ];
+  return new Uint8Array(bytes).buffer;
+}
+
+test('parseMidi correctly handles running status (omitted status bytes)', () => {
+  const result = parseMidi(buildMidiWithRunningStatus());
+  const notes = result.tracks[0]
+    .filter((e) => e.type === 'noteOn' || e.type === 'noteOff')
+    .map((e) => [e.type, e.ticks, e.note, e.velocity !== undefined ? e.velocity : null]);
+  assert.deepStrictEqual(notes, [
+    ['noteOn', 0, 60, 80],        // explicit 0x90
+    ['noteOn', 240, 64, 90],      // running status 0x90 (no explicit status byte)
+    ['noteOff', 480, 60, null],   // new explicit 0x80
+    ['noteOff', 720, 64, null],   // running status 0x80 (no explicit status byte)
+  ]);
+});

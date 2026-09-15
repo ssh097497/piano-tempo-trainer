@@ -82,6 +82,16 @@ function parseMidi(arrayBuffer) {
       } else if (statusByte === 0xf0 || statusByte === 0xf7) {
         const lenResult = parseVLQ(bytes, offset);
         offset = lenResult.nextOffset + lenResult.value; // skip sysex payload
+      } else if (statusByte >= 0xf1 && statusByte <= 0xf6) {
+        // System-common messages: MTC (0xF1), Song Position (0xF2), Song Select (0xF3), undefined (0xF4/0xF5), Tune Request (0xF6)
+        // These are almost never found in standard MIDI files (they're for live performance/transport control).
+        // Fail loudly rather than silently mis-parsing and corrupting the track.
+        throw new Error(`Unsupported system-common byte 0x${statusByte.toString(16).toUpperCase()} at offset ${offset - 1} — these bytes are not typically found in Standard MIDI Files`);
+      } else if (statusByte >= 0xf8) {
+        // System realtime messages (0xF8-0xFE) and reset (0xFF already handled above as meta).
+        // These are also almost never in Standard MIDI Files (used for live performance timing/synchronization).
+        // Fail loudly rather than silently mis-parsing.
+        throw new Error(`Unsupported system-realtime byte 0x${statusByte.toString(16).toUpperCase()} at offset ${offset - 1} — these bytes are not typically found in Standard MIDI Files`);
       } else {
         const eventType = statusByte & 0xf0;
         const channel = statusByte & 0x0f;

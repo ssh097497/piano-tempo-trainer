@@ -77,14 +77,29 @@
   <script src="vendor/libfluidsynth-2.4.6.js"></script>
   <script src="vendor/js-synthesizer.min.js"></script>
   <script>
-    // Bind js-synthesizer to the FluidSynth module NOW, before Verovio's
-    // script (loaded next) overwrites window.Module with its own runtime.
-    // js-synthesizer normally resolves `Module` lazily at first use, which
-    // would otherwise pick up whichever WASM runtime loaded last.
-    JSSynth.Synthesizer.initializeWithFluidSynthModule(window.Module);
+    // Save FluidSynth's Module object before Verovio's script (loaded next)
+    // overwrites the shared window.Module global with its own runtime.
+    // Bind js-synthesizer to it now too, since js-synthesizer resolves
+    // `Module` lazily at first use and would otherwise pick up whichever
+    // WASM runtime loaded last.
+    window.__fluidSynthModule = window.Module;
+    JSSynth.Synthesizer.initializeWithFluidSynthModule(window.__fluidSynthModule);
   </script>
   <script src="vendor/fflate.js"></script>
   <script src="vendor/verovio-toolkit-wasm.js"></script>
+  <script>
+    // Verovio unconditionally sets window.Module = its own runtime as a
+    // deprecated compatibility shim (Verovio itself never reads it back --
+    // it uses its own module-scoped `verovio.module` reference internally).
+    // But FluidSynth's raw ccall/cwrap (libfluidsynth-2.4.6.js) are NOT
+    // modularized: their internal getCFunc does a live lookup of the bare
+    // `Module` identifier on every call, not a one-time capture. Left
+    // alone, any FluidSynth C-function call made after this point would
+    // silently resolve against Verovio's module instead and fail with
+    // "func is not a function". Restore it so FluidSynth keeps working for
+    // the rest of the page's lifetime.
+    window.Module = window.__fluidSynthModule;
+  </script>
   <script src="midi-parser.js"></script>
   <script src="xml-score-reader.js"></script>
   <script src="score-parser.js"></script>

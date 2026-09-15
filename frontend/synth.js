@@ -1,4 +1,4 @@
-const PIANO_VAR_NAME = '_tone_0000_FluidR3_GM_sf2_file';
+const PIANO_VAR_NAME = '_tone_0000_GeneralUserGS_sf2_file';
 
 function createPianoSynth(audioContext) {
   const player = new WebAudioFontPlayer();

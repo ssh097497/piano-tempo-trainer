@@ -9,9 +9,12 @@
   let metronomeVolume = 1.0;
   let metronomeSoundType = 'beep';
   let handFilter = 'both'; // 'both' | 'right' | 'left'
-  let loopOn = false;
-  let loopStartQL = null;
-  let loopEndQL = null;
+  let regions = []; // [{id, startQL, endQL}, ...] for the currently open file
+  let activeRegionId = null; // id of the region currently being looped, or null
+  let lastTickOffsetQL = null; // set by startPlayback(); distinguishes "just seeked past the loop end" from "played forward past it"
+  let pendingStartQL = null; // set by "구간 시작 지정" until paired with an end
+  let pendingEndQL = null; // set by "구간 끝 지정" until paired with a start
+  let currentFileName = null; // the currently open file's name, for keying saved regions
   let measureStarts = [];
   let schedulerHandle = null;
   let nextNoteIndex = 0;
@@ -44,7 +47,7 @@
   const timeLabel = document.getElementById('time-label');
   const setLoopStartBtn = document.getElementById('set-loop-start-btn');
   const setLoopEndBtn = document.getElementById('set-loop-end-btn');
-  const loopToggle = document.getElementById('loop-toggle');
+  const regionListEl = document.getElementById('region-list');
   const pendulumWrap = document.getElementById('pendulum-wrap');
   const handSelect = document.getElementById('hand-select');
   const handButtons = Array.from(handSelect.querySelectorAll('.hand-btn'));
@@ -100,6 +103,17 @@
     handFilter = 'both';
     handButtons.forEach((b) => b.classList.toggle('active', b.dataset.hand === 'both'));
     handSelect.hidden = !scoreData.handSeparationAvailable;
+
+    currentFileName = file.name;
+    pendingStartQL = null;
+    pendingEndQL = null;
+    activeRegionId = null;
+    try {
+      regions = await loadRegionsForFile(file.name);
+    } catch (err) {
+      regions = []; // non-critical: an unreadable saved list just means starting empty
+    }
+    renderRegionList();
 
     if (scoreData.warnings && scoreData.warnings.length) {
       showError(scoreData.warnings.join(' / '));
@@ -190,14 +204,27 @@
     return idx === -1 ? scoreData.beats.length : idx;
   }
 
+  function activeRegion() {
+    return regions.find((r) => r.id === activeRegionId) || null;
+  }
+
   function loopEndOrInfinity() {
-    return (loopOn && loopStartQL != null && loopEndQL != null) ? loopEndQL : Infinity;
+    const region = activeRegion();
+    if (!region) return Infinity;
+    // Once real playback has already carried us past the region's end (not
+    // just a fresh seek that landed past it), stop cutting notes there --
+    // otherwise a deliberate seek past the loop end to preview later
+    // material would play silence until schedulerTick's wrap check yanks
+    // playback back to the region's start.
+    if (lastTickOffsetQL != null && lastTickOffsetQL >= region.endQL) return Infinity;
+    return region.endQL;
   }
 
   function startPlayback(fromOffsetQL) {
     clock.reset(audioContext.currentTime, fromOffsetQL);
     nextNoteIndex = findNoteIndexAtOrAfter(fromOffsetQL);
     nextBeatIndex = findBeatIndexAtOrAfter(fromOffsetQL);
+    lastTickOffsetQL = fromOffsetQL;
     isPlaying = true;
     playPauseIcon.innerHTML = PAUSE_ICON;
     pendulumWrap.classList.remove('paused');
@@ -253,11 +280,20 @@
     const currentOffset = clock.offsetAt(audioContext.currentTime);
     updateProgressUI(currentOffset);
 
-    if (loopOn && loopStartQL != null && loopEndQL != null && currentOffset >= loopEndQL) {
-      startPlayback(loopStartQL);
+    const region = activeRegion();
+    // An edge-crossing check, not a level check: this only fires the
+    // moment playback advances FROM before the region's end TO at/after
+    // it. A fresh seek already lands with lastTickOffsetQL reset to that
+    // same spot (see startPlayback), so seeking straight to or past the
+    // end never triggers this on its own -- only continued forward
+    // playback through the boundary does.
+    if (region && lastTickOffsetQL < region.endQL && currentOffset >= region.endQL) {
+      startPlayback(region.startQL);
       return;
     }
-    if (!loopOn && currentOffset >= scoreData.totalQuarterLength) {
+    lastTickOffsetQL = currentOffset;
+
+    if (!region && currentOffset >= scoreData.totalQuarterLength) {
       pausedOffsetQL = 0;
       stopInternal();
     }
@@ -406,48 +442,106 @@
   }
 
   function updateLoopHighlight() {
-    if (loopStartQL == null || loopEndQL == null) {
+    const region = activeRegion();
+    if (!region) {
       loopRangeEl.hidden = true;
       return;
     }
     loopRangeEl.hidden = false;
-    const startPct = (loopStartQL / scoreData.totalQuarterLength) * 100;
-    const endPct = (loopEndQL / scoreData.totalQuarterLength) * 100;
+    const startPct = (region.startQL / scoreData.totalQuarterLength) * 100;
+    const endPct = (region.endQL / scoreData.totalQuarterLength) * 100;
     loopRangeEl.style.left = `${startPct}%`;
     loopRangeEl.style.width = `${endPct - startPct}%`;
   }
 
-  function ensureLoopOrder() {
-    // The two handlers below set loopStartQL/loopEndQL independently, with
-    // no ordering guarantee -- the user can mark "구간 끝" before marking
-    // "구간 시작" later in the piece. If loopEndQL <= loopStartQL is left
-    // as-is, schedulerTick's note/beat loop breaks immediately every tick
-    // (nothing satisfies startQL < effectiveEnd) and the wraparound check
-    // (currentOffset >= loopEndQL) fires on virtually every tick, calling
-    // startPlayback(loopStartQL) in a silent ~25ms spin-lock. Swap so start
-    // is always before end.
-    if (loopStartQL != null && loopEndQL != null && loopEndQL <= loopStartQL) {
-      const tmp = loopStartQL;
-      loopStartQL = loopEndQL;
-      loopEndQL = tmp;
+  function persistRegions() {
+    if (!currentFileName) return;
+    saveRegionsForFile(currentFileName, regions).catch(() => {
+      // Non-critical: losing a saved region set on a write failure just
+      // means it won't be there next time -- it doesn't affect this session.
+    });
+  }
+
+  function renderRegionList() {
+    regionListEl.innerHTML = '';
+    const secondsPerBeat = 60 / Number(bpmSlider.value);
+    regions.forEach((region, i) => {
+      const li = document.createElement('li');
+      li.className = 'region-item' + (region.id === activeRegionId ? ' active' : '');
+
+      const label = document.createElement('span');
+      label.className = 'region-label';
+      label.textContent = `구간 ${i + 1}`;
+
+      const time = document.createElement('span');
+      time.className = 'region-time';
+      time.textContent = `${formatTime(region.startQL * secondsPerBeat)}–${formatTime(region.endQL * secondsPerBeat)}`;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'region-delete';
+      deleteBtn.setAttribute('aria-label', '구간 삭제');
+      deleteBtn.textContent = '×';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteRegion(region.id);
+      });
+
+      li.addEventListener('click', async () => {
+        await ensureAudio();
+        activateRegion(region.id);
+      });
+
+      li.append(label, time, deleteBtn);
+      regionListEl.appendChild(li);
+    });
+    updateLoopHighlight();
+  }
+
+  function activateRegion(id) {
+    if (activeRegionId === id) {
+      activeRegionId = null;
+      renderRegionList();
+      return;
     }
+    activeRegionId = id;
+    renderRegionList();
+    seekTo(activeRegion().startQL);
+  }
+
+  function deleteRegion(id) {
+    regions = regions.filter((r) => r.id !== id);
+    if (activeRegionId === id) activeRegionId = null;
+    persistRegions();
+    renderRegionList();
+  }
+
+  function maybeCreateRegionFromPending() {
+    if (pendingStartQL == null || pendingEndQL == null) return;
+    let start = pendingStartQL;
+    let end = pendingEndQL;
+    if (end <= start) {
+      const tmp = start;
+      start = end;
+      end = tmp;
+    }
+    const region = { id: String(Date.now()), startQL: start, endQL: end };
+    regions.push(region);
+    activeRegionId = region.id;
+    pendingStartQL = null;
+    pendingEndQL = null;
+    persistRegions();
+    renderRegionList();
   }
 
   setLoopStartBtn.addEventListener('click', async () => {
     await ensureAudio();
-    loopStartQL = snapLoopStart(currentLogicalOffset(), measureStarts);
-    ensureLoopOrder();
-    updateLoopHighlight();
+    pendingStartQL = snapLoopStart(currentLogicalOffset(), measureStarts);
+    maybeCreateRegionFromPending();
   });
 
   setLoopEndBtn.addEventListener('click', async () => {
     await ensureAudio();
-    loopEndQL = snapLoopEnd(currentLogicalOffset(), measureStarts, scoreData.totalQuarterLength);
-    ensureLoopOrder();
-    updateLoopHighlight();
-  });
-
-  loopToggle.addEventListener('change', () => {
-    loopOn = loopToggle.checked;
+    pendingEndQL = snapLoopEnd(currentLogicalOffset(), measureStarts, scoreData.totalQuarterLength);
+    maybeCreateRegionFromPending();
   });
 })();

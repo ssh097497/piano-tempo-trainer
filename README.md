@@ -44,6 +44,7 @@ node --test frontend/scheduler.test.js
 node --test frontend/synth.integration.test.js
 node --test frontend/midi-parser.test.js
 node --test frontend/xml-score-reader.test.js
+node --test frontend/score-parser.test.js
 ```
 
 ## 알려진 한계

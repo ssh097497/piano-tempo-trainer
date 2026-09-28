@@ -109,8 +109,11 @@
     pendingEndQL = null;
     activeRegionId = null;
     try {
-      regions = await loadRegionsForFile(file.name);
+      const loaded = await loadRegionsForFile(file.name);
+      if (currentFileName !== file.name) return; // a newer handleFile() call already took over
+      regions = loaded;
     } catch (err) {
+      if (currentFileName !== file.name) return;
       regions = []; // non-critical: an unreadable saved list just means starting empty
     }
     renderRegionList();
@@ -293,7 +296,7 @@
     }
     lastTickOffsetQL = currentOffset;
 
-    if (!region && currentOffset >= scoreData.totalQuarterLength) {
+    if (currentOffset >= scoreData.totalQuarterLength) {
       pausedOffsetQL = 0;
       stopInternal();
     }
@@ -339,6 +342,7 @@
 
   function applyBpm(bpm) {
     updatePendulumSpeed(bpm);
+    if (scoreData) renderRegionList(); // region times are derived from the current BPM
     if (!clock) return;
     if (isPlaying) {
       clock.setBpm(bpm, audioContext.currentTime);
@@ -524,11 +528,12 @@
       start = end;
       end = tmp;
     }
+    pendingStartQL = null;
+    pendingEndQL = null;
+    if (start === end) return; // a zero-length region would highlight nothing and never loop
     const region = { id: String(Date.now()), startQL: start, endQL: end };
     regions.push(region);
     activeRegionId = region.id;
-    pendingStartQL = null;
-    pendingEndQL = null;
     persistRegions();
     renderRegionList();
   }

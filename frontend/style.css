@@ -345,6 +345,31 @@ h1 { text-wrap: balance; }
 
 #bpm-slider { width: 100%; }
 
+.hand-select {
+  display: flex;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+}
+.hand-btn {
+  flex: 1;
+  padding: 7px 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.hand-btn.active {
+  background: var(--accent);
+  color: #fff9ee;
+}
+
 input[type="range"] {
   -webkit-appearance: none;
   width: 100%;

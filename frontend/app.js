@@ -8,6 +8,7 @@
   let songVolume = 1.0;
   let metronomeVolume = 1.0;
   let metronomeSoundType = 'beep';
+  let handFilter = 'both'; // 'both' | 'right' | 'left'
   let loopOn = false;
   let loopStartQL = null;
   let loopEndQL = null;
@@ -45,6 +46,8 @@
   const setLoopEndBtn = document.getElementById('set-loop-end-btn');
   const loopToggle = document.getElementById('loop-toggle');
   const pendulumWrap = document.getElementById('pendulum-wrap');
+  const handSelect = document.getElementById('hand-select');
+  const handButtons = Array.from(handSelect.querySelectorAll('.hand-btn'));
   const metronomeVolumeRow = document.getElementById('metronome-volume-row');
   const playPauseIcon = document.getElementById('play-pause-icon');
 
@@ -90,6 +93,13 @@
     titleEl.textContent = scoreData.title;
     uploadScreen.hidden = true;
     practiceScreen.hidden = false;
+
+    // Reset hand selection for every newly loaded file -- a previous
+    // file's "왼손만" choice carrying over into a piece the user just
+    // opened would be a surprising way to lose the right-hand part.
+    handFilter = 'both';
+    handButtons.forEach((b) => b.classList.toggle('active', b.dataset.hand === 'both'));
+    handSelect.hidden = !scoreData.handSeparationAvailable;
 
     if (scoreData.warnings && scoreData.warnings.length) {
       showError(scoreData.warnings.join(' / '));
@@ -222,8 +232,10 @@
       if (note.startQL >= effectiveEnd) break;
       const when = clock.timeAt(note.startQL);
       if (when > lookaheadUntil) break;
-      const durationSec = effectiveDurationQL(note, scoreData.pedalEvents) * clock.secondsPerBeat();
-      synth.playNote(note.pitch, when, durationSec, note.velocity * songVolume);
+      if (handFilter === 'both' || note.hand === handFilter) {
+        const durationSec = effectiveDurationQL(note, scoreData.pedalEvents) * clock.secondsPerBeat();
+        synth.playNote(note.pitch, when, durationSec, note.velocity * songVolume);
+      }
       nextNoteIndex++;
     }
 
@@ -266,6 +278,13 @@
     } else {
       startPlayback(pausedOffsetQL);
     }
+  });
+
+  handButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      handFilter = btn.dataset.hand;
+      handButtons.forEach((b) => b.classList.toggle('active', b === btn));
+    });
   });
 
   restartBtn.addEventListener('click', async () => {

@@ -118,6 +118,35 @@ async function readFileAsMusicXmlText(file) {
   return new TextDecoder('utf-8').decode(unzipped[entryName]);
 }
 
+// Assigns a hand label to each note based on which original MIDI track it
+// came from, without assuming anything about pitch (hands cross registers).
+// Verified against Verovio's actual output (see this feature's design
+// notes): a 2-staff piano score renders as one silent meta/tempo track plus
+// exactly two note-bearing tracks, in staff order (right hand first, then
+// left hand) -- so "exactly two note-bearing tracks" is the only signal
+// this needs. A score that doesn't fit that shape (e.g. a single-staff
+// melody, or an unusual multi-part score) just doesn't get hand separation;
+// every note keeps hand: null and callers should not offer the feature.
+//
+// notesByTrack: array of arrays, one per original MIDI track in order, each
+// holding that track's already-extracted note objects (no `hand` field yet).
+function assignHands(notesByTrack) {
+  const noteBearingTracks = notesByTrack.filter((trackNotes) => trackNotes.length > 0);
+  const handSeparationAvailable = noteBearingTracks.length === 2;
+  const handsInOrder = handSeparationAvailable ? ['right', 'left'] : [null, null];
+
+  const notes = [];
+  noteBearingTracks.forEach((trackNotes, i) => {
+    const hand = handSeparationAvailable ? handsInOrder[i] : null;
+    for (const note of trackNotes) {
+      notes.push({ ...note, hand });
+    }
+  });
+  notes.sort((a, b) => a.startQL - b.startQL);
+
+  return { notes, handSeparationAvailable };
+}
+
 async function parseScoreFile(file) {
   const xmlText = await readFileAsMusicXmlText(file);
 
@@ -143,8 +172,8 @@ async function parseScoreFile(file) {
 
   const { ticksPerQuarter, tracks } = parseMidi(midiArrayBuffer);
 
-  const notes = [];
-  for (const track of tracks) {
+  const notesByTrack = tracks.map(() => []);
+  tracks.forEach((track, trackIndex) => {
     const openNotes = new Map(); // note number -> {startTicks, velocity}
     for (const event of track) {
       if (event.type === 'noteOn') {
@@ -152,7 +181,7 @@ async function parseScoreFile(file) {
       } else if (event.type === 'noteOff') {
         const open = openNotes.get(event.note);
         if (open) {
-          notes.push({
+          notesByTrack[trackIndex].push({
             pitch: event.note,
             startQL: open.startTicks / ticksPerQuarter,
             durationQL: (event.ticks - open.startTicks) / ticksPerQuarter,
@@ -162,8 +191,8 @@ async function parseScoreFile(file) {
         }
       }
     }
-  }
-  notes.sort((a, b) => a.startQL - b.startQL);
+  });
+  const { notes, handSeparationAvailable } = assignHands(notesByTrack);
 
   let totalQuarterLength = 0;
   for (const track of tracks) {
@@ -198,9 +227,9 @@ async function parseScoreFile(file) {
     measureNumber += 1;
   }
 
-  return { title, timeSignature, totalQuarterLength, notes, pedalEvents, beats, warnings };
+  return { title, timeSignature, totalQuarterLength, notes, pedalEvents, beats, warnings, handSeparationAvailable };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { parseScoreFile, readFileAsMusicXmlText };
+  module.exports = { parseScoreFile, readFileAsMusicXmlText, assignHands };
 }

@@ -59,11 +59,19 @@
     <div class="card">
       <p class="card-label">재생</p>
       <div class="transport-row">
+        <button id="restart-btn" class="restart-btn" aria-label="처음부터">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M11 5 4 12l7 7M4 12h13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button id="skip-back-btn" class="skip-btn" aria-label="10초 전으로">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M15 6 9 12l6 6M9 6 3 12l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>10</span>
+        </button>
         <button id="play-pause-btn" class="play-btn">
           <svg id="play-pause-icon" viewBox="0 0 24 24" fill="none"><path d="M6 4.5v15l13-7.5-13-7.5Z" fill="currentColor"/></svg>
         </button>
-        <button id="restart-btn" class="restart-btn">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M11 5 4 12l7 7M4 12h13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <button id="skip-forward-btn" class="skip-btn" aria-label="10초 뒤로">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6M15 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>10</span>
         </button>
         <div class="pendulum-wrap paused" id="pendulum-wrap">
           <div class="pendulum-track"></div>

@@ -29,6 +29,8 @@
   const titleEl = document.getElementById('title');
   const playPauseBtn = document.getElementById('play-pause-btn');
   const restartBtn = document.getElementById('restart-btn');
+  const skipBackBtn = document.getElementById('skip-back-btn');
+  const skipForwardBtn = document.getElementById('skip-forward-btn');
   const bpmSlider = document.getElementById('bpm-slider');
   const bpmNumber = document.getElementById('bpm-number');
   const metronomeToggle = document.getElementById('metronome-toggle');
@@ -92,6 +94,14 @@
     if (scoreData.warnings && scoreData.warnings.length) {
       showError(scoreData.warnings.join(' / '));
     }
+
+    try {
+      await saveLastFile(file);
+    } catch (err) {
+      // Non-critical: "재생 last file" is a convenience, not the main flow.
+      // A failed cache write (e.g. IndexedDB quota/availability issue)
+      // shouldn't block the practice screen that's already showing.
+    }
   }
 
   dropZone.addEventListener('dragover', (e) => e.preventDefault());
@@ -103,50 +113,20 @@
     if (fileInput.files.length) handleFile(fileInput.files[0]);
   });
 
-  if (isFileSystemAccessSupported()) {
-    dropZone.addEventListener('click', async (e) => {
-      e.preventDefault();
-      let handles;
-      try {
-        handles = await window.showOpenFilePicker({
-          types: [{ description: 'MusicXML', accept: { 'application/xml': ['.musicxml', '.mxl', '.xml'] } }],
-        });
-      } catch (err) {
-        return; // user cancelled the picker — not an error
-      }
-      const handle = handles[0];
-      await saveFileHandle(handle);
-      const file = await handle.getFile();
-      await handleFile(file);
-    });
-  }
-
   (async function initReloadButton() {
-    if (!isFileSystemAccessSupported()) return;
-    const handle = await loadFileHandle();
-    if (handle) {
+    const cached = await loadLastFile();
+    if (cached) {
       reloadLastFileBtn.hidden = false;
     }
   })();
 
   reloadLastFileBtn.addEventListener('click', async () => {
-    const handle = await loadFileHandle();
-    if (!handle) return;
     try {
-      const permission = await handle.queryPermission({ mode: 'read' });
-      if (permission !== 'granted') {
-        const requested = await handle.requestPermission({ mode: 'read' });
-        if (requested !== 'granted') {
-          showError('파일 접근 권한이 필요해요.');
-          return;
-        }
-      }
-      const file = await handle.getFile();
-      await handleFile(file);
+      const cached = await loadLastFile();
+      if (!cached) return;
+      await handleFile(cached);
     } catch (err) {
-      showError('이전 파일을 찾을 수 없어요. 다시 업로드해주세요.');
-      await clearFileHandle();
-      reloadLastFileBtn.hidden = true;
+      showError('이전 파일을 불러오지 못했어요.');
     }
   });
 
@@ -338,20 +318,34 @@
   });
   applyBpm(Number(bpmSlider.value));
 
-  // --- Progress bar seek ---
+  // --- Seeking (progress bar clicks and the ±10s buttons share this) ---
+
+  function seekTo(targetOffsetQL) {
+    const clamped = Math.min(scoreData.totalQuarterLength, Math.max(0, targetOffsetQL));
+    pausedOffsetQL = clamped;
+    if (isPlaying) {
+      stopInternal();
+      startPlayback(clamped);
+    } else {
+      updateProgressUI(clamped);
+    }
+  }
 
   progressBar.addEventListener('click', async (e) => {
     await ensureAudio();
     const rect = progressBar.getBoundingClientRect();
     const fraction = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    const targetOffset = fraction * scoreData.totalQuarterLength;
-    pausedOffsetQL = targetOffset;
-    if (isPlaying) {
-      stopInternal();
-      startPlayback(targetOffset);
-    } else {
-      updateProgressUI(targetOffset);
-    }
+    seekTo(fraction * scoreData.totalQuarterLength);
+  });
+
+  skipBackBtn.addEventListener('click', async () => {
+    await ensureAudio();
+    seekTo(currentLogicalOffset() - 10 / clock.secondsPerBeat());
+  });
+
+  skipForwardBtn.addEventListener('click', async () => {
+    await ensureAudio();
+    seekTo(currentLogicalOffset() + 10 / clock.secondsPerBeat());
   });
 
   // --- Metronome toggle ---

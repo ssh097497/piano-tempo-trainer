@@ -214,7 +214,7 @@ h1 { text-wrap: balance; }
 .transport-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
 }
 .play-btn {
   width: 54px;
@@ -245,6 +245,26 @@ h1 { text-wrap: balance; }
   flex: none;
 }
 .restart-btn svg { width: 16px; height: 16px; }
+
+.skip-btn {
+  height: 40px;
+  padding: 0 9px;
+  border-radius: 20px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  flex: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.skip-btn svg { width: 15px; height: 15px; }
+.skip-btn:hover { border-color: var(--accent); color: var(--accent-strong); }
 
 .pendulum-wrap {
   flex: 1;
